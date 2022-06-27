@@ -26,7 +26,6 @@ const messagesSchema = joi.object({
 });
 
 function checkIfNameExists(name){
-    console.log(name)
     db.collection('participants').findOne({name:name}).then( foundName=>{
         if(foundName){
             return true;
@@ -44,18 +43,15 @@ app.post('/participants', async (req, res) => {
       res.sendStatus(422);
       return;
     }
-    console.log(participant.name)
     try {
         const nameAlreadyExistis= await db.collection('participants').findOne({name:participant.name})
         if(nameAlreadyExistis){
-            console.log("name já exist")
             res.sendStatus(422);
             return;
         }
         await db.collection('participants').insertOne(participant);
         const message = {from:participant.name,to:"Todos",text:"entra na sala...",type:"status",time:dayjs().format('HH:mm:ss')}
         await db.collection('messages').insertOne(message);
-        console.log(message)
         res.sendStatus(201);
     } catch (error) {
       console.error(error);
@@ -79,14 +75,12 @@ app.get('/participants', async (req, res) => {
 app.post('/messages', async (req, res) => {
     const validation = messagesSchema.validate(req.body, { abortEarly: true });
     if (validation.error) {
-        console.log("validation error")
         res.sendStatus(422);
         return;
     }
     try {
         const nameAlreadyExistis= await db.collection('participants').findOne({name:req.headers.user})
         if(!nameAlreadyExistis){
-            console.log("name not exist")
             res.sendStatus(422);
             return;
         }
@@ -96,7 +90,6 @@ app.post('/messages', async (req, res) => {
             from:req.headers.user,
             time:dayjs().format('HH:mm:ss')}
         await db.collection('messages').insertOne(message);
-        console.log(message)
         res.sendStatus(201);
     } catch (error) {
       console.error(error);
@@ -110,7 +103,6 @@ app.get('/messages', async (req, res) => {
         {
             return true;
         }else{
-            console.log(message)
         return false;
         }
     }
@@ -141,7 +133,6 @@ app.post('/status', async (req, res) => {
     try {
         const nameAlreadyExistis= await db.collection('participants').findOne({name:req.headers.user})
         if(!nameAlreadyExistis){
-            console.log("name not exist")
             res.sendStatus(404);
             return;
         }
@@ -156,7 +147,37 @@ app.post('/status', async (req, res) => {
     }
 });
 
+async function removeInactiveUsers(){
+    const deleteTime = Date.now() - 15000;
+    console.log("tick")
+    
+    function filterUsersToRemove(user){
+        if(user.lastStatus<deleteTime){
+            return true;
+        }
+        return false;
+    }
+    async function handleRemoval(user){
+        try{
+            await db.collection('messages').insertOne({from: user.name, 
+                to: 'Todos', 
+                text: 'sai da sala...', 
+                type: 'status', 
+                time:dayjs().format('HH:mm:ss')})
+            await db.collection('participants').deleteOne({ name: user.name })
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
 
+    const allUsers=await db.collection('participants').find().toArray();
+    const usersToRemove=allUsers.filter(filterUsersToRemove);
+    usersToRemove.forEach(handleRemoval)
+
+
+}
+setInterval(removeInactiveUsers, 15000);
 
 
 app.listen(5000, () => {
