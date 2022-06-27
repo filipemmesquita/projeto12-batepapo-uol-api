@@ -147,6 +147,30 @@ app.post('/status', async (req, res) => {
     }
 });
 
+app.delete('/messages/:id', async (req, res) => {
+    const id=req.params.id;
+    const user = req.headers.user;
+    try {
+        const message= await db.collection('messages').findOne({_id: new ObjectId(id)})
+        if(!message){
+            res.sendStatus(404);
+            return;
+        }
+        if(message.from!==user){
+            res.sendStatus(401);
+            return;
+        }
+
+        await db.collection('messages').deleteOne({_id: new ObjectId(id)})
+        res.sendStatus(200);
+
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+});
+
+
 async function removeInactiveUsers(){
     const deleteTime = Date.now() - 15000;
     console.log("tick")
