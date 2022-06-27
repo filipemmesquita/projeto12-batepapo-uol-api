@@ -16,21 +16,39 @@ mongoClient.connect(() => {
   db = mongoClient.db('bate_papo_uol');
 });
 
-const participantSchema = joi.object({
+const participantsSchema = joi.object({
     name: joi.string().required()
   });
+const messagesSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.string().valid('message','private_message').required(),
+});
+
+function checkIfNameExists(name){
+    console.log(name)
+    db.collection('participants').findOne({name:name}).then( foundName=>{
+        if(foundName){
+            return true;
+        }else{
+            return false;
+        }
+    });
+    
+}
 
 app.post('/participants', async (req, res) => {
     const participant = { name:req.body.name, lastStatus: Date.now() };
-    const validation = participantSchema.validate(req.body, { abortEarly: true });
+    const validation = participantsSchema.validate(req.body, { abortEarly: true });
     if (validation.error) {
       res.sendStatus(422);
       return;
     }
     console.log(participant.name)
     try {
-       const nameAlreadyExists=await db.collection('participants').findOne({name:participant.name});
-       if(nameAlreadyExists){
+        const nameAlreadyExistis= await db.collection('participants').findOne({name:participant.name})
+        if(nameAlreadyExistis){
+            console.log("name já exist")
             res.sendStatus(422);
             return;
         }
@@ -57,6 +75,35 @@ app.get('/participants', async (req, res) => {
         res.sendStatus(500);
     }
 });
+
+app.post('/messages', async (req, res) => {
+    const validation = messagesSchema.validate(req.body, { abortEarly: true });
+    if (validation.error) {
+        console.log("validation error")
+        res.sendStatus(422);
+        return;
+    }
+    try {
+        const nameAlreadyExistis= await db.collection('participants').findOne({name:req.headers.user})
+        if(!nameAlreadyExistis){
+            console.log("name not exist")
+            res.sendStatus(422);
+            return;
+        }
+        const message={to:req.body.to,
+            text:req.body.text,
+            type:req.body.type,
+            from:req.headers.user,
+            time:dayjs().format('HH:mm:ss')}
+        await db.collection('messages').insertOne(message);
+        console.log(message)
+        res.sendStatus(201);
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+});
+
 
 app.listen(5000, () => {
     console.log('Server is litening on port 5000.');
