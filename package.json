@@ -1,0 +1,19 @@
+{
+  "name": "bate-papo-uol-api",
+  "version": "1.0.0",
+  "description": "API for a chatroom",
+  "main": "index.js",
+  "scripts": {
+    "test": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/filipemmesquita/projeto12-batepapo-uol-api.git"
+  },
+  "author": "Filipe Mesquita",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/filipemmesquita/projeto12-batepapo-uol-api/issues"
+  },
+  "homepage": "https://github.com/filipemmesquita/projeto12-batepapo-uol-api#readme"
+}
