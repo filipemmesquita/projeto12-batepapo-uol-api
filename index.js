@@ -25,17 +25,6 @@ const messagesSchema = joi.object({
     type: joi.string().valid('message','private_message').required(),
 });
 
-function checkIfNameExists(name){
-    db.collection('participants').findOne({name:name}).then( foundName=>{
-        if(foundName){
-            return true;
-        }else{
-            return false;
-        }
-    });
-    
-}
-
 app.post('/participants', async (req, res) => {
     const participant = { name:req.body.name, lastStatus: Date.now() };
     const validation = participantsSchema.validate(req.body, { abortEarly: true });
@@ -170,11 +159,46 @@ app.delete('/messages/:id', async (req, res) => {
     }
 });
 
+app.put('/messages/:id', async (req, res) => {
+    const id=req.params.id;
+    const validation = messagesSchema.validate(req.body, { abortEarly: true });
+    if (validation.error) {
+        res.sendStatus(422);
+        return;
+    }
+    try {
+        const nameAlreadyExistis= await db.collection('participants').findOne({name:req.headers.user})
+        if(!nameAlreadyExistis){
+            res.sendStatus(422);
+            return;
+        }
+        const messageExists= await db.collection('messages').findOne({_id: new ObjectId(id)})
+        if(!messageExists){
+            res.sendStatus(404);
+            return;
+        }
+        if(messageExists.from!==req.headers.user){
+            res.sendStatus(401);
+            return;
+        }
+        await db.collection('messages').updateOne({ 
+            _id:new ObjectId(id)
+        }, { $set: {to:req.body.to,
+            text:req.body.text,
+            type:req.body.type,
+            from:req.headers.user,
+            time:dayjs().format('HH:mm:ss')} })
+
+        res.sendStatus(200);
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+});
+
 
 async function removeInactiveUsers(){
     const deleteTime = Date.now() - 15000;
-    console.log("tick")
-    
     function filterUsersToRemove(user){
         if(user.lastStatus<deleteTime){
             return true;
