@@ -104,6 +104,60 @@ app.post('/messages', async (req, res) => {
     }
 });
 
+app.get('/messages', async (req, res) => {
+    function messageFilter(message){
+        if(message.type==="message"||message.type==="status"||message.from===req.headers.user||message.to===req.headers.user)
+        {
+            return true;
+        }else{
+            console.log(message)
+        return false;
+        }
+    }
+    let limit=0
+    if(req.query.limit){
+        limit = parseInt(req.query.limit);
+    }
+    try{
+    const allMessages=await db.collection('messages').find().toArray();
+    if (!allMessages) {
+        return res.sendStatus(404);
+    }
+
+    const resMessages=allMessages.filter(messageFilter);
+    if(limit>0){
+        res.send(resMessages.slice(-limit));
+    }else{
+        res.send(resMessages);
+    }
+    }catch (error) {
+        console.error(error);
+        res.sendStatus(500);
+    }
+});
+
+app.post('/status', async (req, res) => {
+
+    try {
+        const nameAlreadyExistis= await db.collection('participants').findOne({name:req.headers.user})
+        if(!nameAlreadyExistis){
+            console.log("name not exist")
+            res.sendStatus(404);
+            return;
+        }
+        await db.collection('participants').updateOne({ 
+			name:req.headers.user
+		}, { $set: {lastStatus:Date.now()} })
+				
+        res.sendStatus(200);
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+});
+
+
+
 
 app.listen(5000, () => {
     console.log('Server is litening on port 5000.');
